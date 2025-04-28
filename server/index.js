@@ -1,60 +1,10 @@
-// const express = require("express");
-// const app = express();
-
-// const database = require("./config/database.config");
-// const cookieParser = require("cookie-parser");
-// const cors = require("cors");
-// const { cloudinaryConnect } = require("./config/cloudinary");
-// const fileUpload = require("express-fileupload");
-// const dotenv = require("dotenv");
-
-// dotenv.config();
-// const PORT = process.env.PORT || 4000;
-
-// //database connect
-// database.connect();
-// //middlewares
-// app.use(express.json());
-// app.use(express.urlencoded({ extended: true })); //for using postman
-// app.use(cookieParser());
-// app.use(
-//   cors({
-//     origin: "http://localhost:3000",
-//     methods: ["GET", "POST", "PUT", "DELETE"],
-//     credentials: true,
-//   })
-// );
-
-// app.use(
-//   fileUpload({
-//     useTempFiles: true,
-//     tempFileDir: "/tmp",
-//   })
-// );
-// // cloudinary connection
-// cloudinaryConnect();
-
-// //routes
-
-// //def route
-
-// app.get("/", (req, res) => {
-//   return res.json({
-//     success: true,
-//     message: "Your server is up and running....",
-//   });
-// });
-
-// app.listen(PORT, () => {
-//   console.log(`App is running at ${PORT}`);
-// });
-
 const express = require("express");
 const app = express();
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const fileUpload = require("express-fileupload");
 const dotenv = require("dotenv");
+const path = require("path");
 
 // Config
 dotenv.config();
@@ -68,17 +18,18 @@ const { cloudinaryConnect } = require("./config/cloudinary");
 const casinoRoutes = require("./routes/Casino.Routes");
 const blogRoutes = require("./routes/Blogs.Routes");
 const authRoutes = require("./routes/Auth.Routes");
+const uploadRoutes = require("./routes/Upload.Routes");
 
 // Database connect
 database.connect();
 
 // Middlewares
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.use(cookieParser());
 app.use(
   cors({
-    origin: "http://localhost:5000",
+    origin: ["http://localhost:3000", "https://your-production-domain.com"],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   })
@@ -98,13 +49,22 @@ cloudinaryConnect();
 app.use("/api/casinos", casinoRoutes);
 app.use("/api/blogs", blogRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/upload", uploadRoutes);
 
-// Default route
-app.get("/", (req, res) => {
-  return res.json({
-    success: true,
-    message: "Casino Website API is running...",
+// Serve static assets if in production
+if (process.env.NODE_ENV === "production") {
+  // Set static folder
+  app.use(express.static(path.join(__dirname, "../frontend/build")));
+
+  app.get("*", (req, res) => {
+    res.sendFile(path.resolve(__dirname, "../frontend", "build", "index.html"));
   });
+}
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ success: false, message: "Internal Server Error" });
 });
 
 // Start server
