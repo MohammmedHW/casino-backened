@@ -63,13 +63,32 @@ exports.deleteCasino = async (req, res) => {
 };
 
 // Update casino order
+// exports.updateCasinoOrder = async (req, res) => {
+//   try {
+//     const { newOrder } = req.body;
+
+//     if (newOrder === undefined) {
+//       return res.status(400).json({ message: "New order is required" });
+//     }
+//     const casino = await Casino.findByIdAndUpdate(
+//       req.params.id,
+//       { order: newOrder },
+//       { new: true }
+//     );
+
+//     if (!casino) {
+//       return res.status(404).json({ message: "Casino not found" });
+//     }
+
+//     res.json(casino);
+//   } catch (err) {
+//     res.status(400).json({ message: err.message });
+//   }
+// };
+
 exports.updateCasinoOrder = async (req, res) => {
   try {
     const { newOrder } = req.body;
-
-    if (newOrder === undefined) {
-      return res.status(400).json({ message: "New order is required" });
-    }
     const casino = await Casino.findByIdAndUpdate(
       req.params.id,
       { order: newOrder },
