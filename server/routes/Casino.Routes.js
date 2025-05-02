@@ -24,4 +24,6 @@ router.put("/reorder/:id", auth, casinoController.updateCasinoOrder);
 // Increment visits count for a casino
 // router.post("/:id/visit", casinoController.incrementVisits);
 
+router.get("/slug/:slug", casinoController.getCasinoBySlug);
+
 module.exports = router;

@@ -35,15 +35,65 @@ exports.createCasino = async (req, res) => {
 };
 
 // Update casino
+
 exports.updateCasino = async (req, res) => {
   try {
-    const casino = await Casino.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-    });
-    if (!casino) {
-      return res.status(404).json({ message: "Casino not found" });
+    const { order: newOrder } = req.body;
+    const session = await Casino.startSession();
+    session.startTransaction();
+
+    try {
+      // Get the casino we're updating
+      const casinoToUpdate = await Casino.findById(req.params.id).session(
+        session
+      );
+      if (!casinoToUpdate) {
+        throw new Error("Casino not found");
+      }
+
+      const oldOrder = casinoToUpdate.order;
+
+      if (newOrder !== undefined && newOrder !== oldOrder) {
+        // If order is being changed, adjust other casinos
+        if (newOrder < oldOrder) {
+          // Moving up - increment orders between new and old positions
+          await Casino.updateMany(
+            {
+              _id: { $ne: req.params.id },
+              order: { $gte: newOrder, $lt: oldOrder },
+            },
+            { $inc: { order: 1 } },
+            { session }
+          );
+        } else {
+          // Moving down - decrement orders between old and new positions
+          await Casino.updateMany(
+            {
+              _id: { $ne: req.params.id },
+              order: { $gt: oldOrder, $lte: newOrder },
+            },
+            { $inc: { order: -1 } },
+            { session }
+          );
+        }
+      }
+
+      // Update the casino
+      const updatedCasino = await Casino.findByIdAndUpdate(
+        req.params.id,
+        req.body,
+        { new: true, session }
+      );
+
+      await session.commitTransaction();
+      session.endSession();
+
+      res.json(updatedCasino);
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+      throw error;
     }
-    res.json(casino);
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
@@ -63,43 +113,55 @@ exports.deleteCasino = async (req, res) => {
 };
 
 // Update casino order
-// exports.updateCasinoOrder = async (req, res) => {
-//   try {
-//     const { newOrder } = req.body;
-
-//     if (newOrder === undefined) {
-//       return res.status(400).json({ message: "New order is required" });
-//     }
-//     const casino = await Casino.findByIdAndUpdate(
-//       req.params.id,
-//       { order: newOrder },
-//       { new: true }
-//     );
-
-//     if (!casino) {
-//       return res.status(404).json({ message: "Casino not found" });
-//     }
-
-//     res.json(casino);
-//   } catch (err) {
-//     res.status(400).json({ message: err.message });
-//   }
-// };
 
 exports.updateCasinoOrder = async (req, res) => {
   try {
     const { newOrder } = req.body;
-    const casino = await Casino.findByIdAndUpdate(
-      req.params.id,
-      { order: newOrder },
-      { new: true }
-    );
 
-    if (!casino) {
+    // Find the casino to update
+    const casinoToUpdate = await Casino.findById(req.params.id);
+    if (!casinoToUpdate) {
       return res.status(404).json({ message: "Casino not found" });
     }
 
-    res.json(casino);
+    // Get current order of the casino
+    const oldOrder = casinoToUpdate.order;
+
+    // Update all affected casinos in a transaction
+    const session = await Casino.startSession();
+    session.startTransaction();
+
+    try {
+      // Shift other casinos' orders
+      if (newOrder < oldOrder) {
+        // Moving up - increment orders between new and old positions
+        await Casino.updateMany(
+          { order: { $gte: newOrder, $lt: oldOrder } },
+          { $inc: { order: 1 } },
+          { session }
+        );
+      } else {
+        // Moving down - decrement orders between old and new positions
+        await Casino.updateMany(
+          { order: { $gt: oldOrder, $lte: newOrder } },
+          { $inc: { order: -1 } },
+          { session }
+        );
+      }
+
+      // Update the moved casino's order
+      casinoToUpdate.order = newOrder;
+      await casinoToUpdate.save({ session });
+
+      await session.commitTransaction();
+      session.endSession();
+
+      res.json(casinoToUpdate);
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+      throw error;
+    }
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
@@ -123,3 +185,15 @@ exports.updateCasinoOrder = async (req, res) => {
 //     res.status(500).json({ message: err.message });
 //   }
 // };
+
+exports.getCasinoBySlug = async (req, res) => {
+  try {
+    const casino = await Casino.findOne({ slug: req.params.slug });
+    if (!casino) {
+      return res.status(404).json({ message: "Casino not found" });
+    }
+    res.json(casino);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};

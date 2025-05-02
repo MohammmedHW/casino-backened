@@ -1,68 +1,3 @@
-// const mongoose = require("mongoose");
-
-// const CasinoSchema = new mongoose.Schema(
-//   {
-//     name: {
-//       type: String,
-//       required: true,
-//       trim: true,
-//     },
-//     logo: {
-//       type: String,
-//       required: false,
-//     },
-//     rating: {
-//       type: Number,
-//       required: true,
-//       min: 0,
-//       max: 5,
-//       default: 0,
-//     },
-//     depositBonus: {
-//       type: String,
-//       required: false,
-//     },
-//     welcomeBonus: {
-//       type: String,
-//       required: false,
-//     },
-//     order: {
-//       type: Number,
-//       required: false,
-//       default: 0,
-//     },
-//     generalInfo: {
-//       website: { type: String },
-//       languages: { type: String },
-//       established: { type: String },
-//       licences: { type: String },
-//       affiliateProgram: { type: String },
-//       companyName: { type: String },
-//     },
-//     characteristics: {
-//       casinoType: { type: String },
-//       features: { type: String },
-//     },
-//     paymentInfo: {
-//       minimumDeposit: { type: Number, default: 0 },
-//       withdrawalMethods: { type: String },
-//     },
-//     availableCountries: { type: String },
-//     editorView: { type: String },
-//     generalDescription: { type: String },
-//     paymentDescription: { type: String },
-//     customerSupportDescription: { type: String },
-//     responsibleGamblingDescription: { type: String },
-//     visits: {
-//       type: Number,
-//       default: 0,
-//     },
-//   },
-//   { timestamps: true }
-// );
-
-// module.exports = mongoose.model("Casino", CasinoSchema);
-
 const mongoose = require("mongoose");
 
 const CasinoSchema = new mongoose.Schema(
@@ -170,6 +105,8 @@ const CasinoSchema = new mongoose.Schema(
       licences: { type: String },
       affiliateProgram: { type: String },
       companyName: { type: String },
+      casinoType: [String],
+      features: [String],
     },
     characteristics: {
       casinoType: { type: String },
@@ -178,6 +115,8 @@ const CasinoSchema = new mongoose.Schema(
     paymentInfo: {
       minimumDeposit: { type: Number, default: 0 },
       withdrawalMethods: { type: String },
+      withdrawalTime: String,
+      fees: String,
     },
     editorView: { type: String },
     generalDescription: { type: String },
@@ -188,6 +127,21 @@ const CasinoSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    games: {
+      slots: Boolean,
+      liveCasino: Boolean,
+      sportsBetting: Boolean,
+    },
+    responsibleGaming: {
+      tools: [String],
+      support: String,
+    },
+    slug: {
+      type: String,
+      unique: true,
+      index: true,
+    },
+    overview: String,
   },
   { timestamps: true }
 );
@@ -198,5 +152,16 @@ CasinoSchema.index({ tags: 1 });
 CasinoSchema.index({ availableCountries: 1 });
 CasinoSchema.index({ rating: -1 });
 CasinoSchema.index({ order: 1 });
+
+// Add this to your Casino model
+CasinoSchema.pre("save", function (next) {
+  if (!this.slug) {
+    this.slug = this.name
+      .toLowerCase()
+      .replace(/[^\w ]+/g, "")
+      .replace(/ +/g, "-");
+  }
+  next();
+});
 
 module.exports = mongoose.model("Casino", CasinoSchema);
