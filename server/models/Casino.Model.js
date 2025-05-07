@@ -141,6 +141,18 @@ const CasinoSchema = new mongoose.Schema(
       unique: true,
       index: true,
     },
+    hotCasino: {
+      type: Boolean,
+      default: false
+    },
+    recommendedByExperts: {
+      type: Boolean,
+      default: false
+    },
+    certifiedCasino: {
+      type: Boolean,
+      default: false
+    },
     overview: String,
   },
   { timestamps: true }
