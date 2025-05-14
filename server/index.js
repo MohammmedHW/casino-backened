@@ -28,7 +28,7 @@ app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.use(cookieParser());
 app.use(
   cors({
-    origin: ["http://localhost:3000", "https://casino-app-rho-vert.vercel.app"],
+    origin: ["http://localhost:3000", "https://casino-app-alpha.vercel.app/"],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   })
