@@ -22,18 +22,32 @@ const uploadRoutes = require("./routes/Upload.Routes");
 // Database connect
 database.connect();
 
+// Enhanced CORS configuration
+const corsOptions = {
+  origin: [
+    "http://localhost:3000",
+    "https://casino-app-alpha.vercel.app", // Removed trailing slash
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-Requested-With",
+    "Accept",
+    "Origin",
+    "Access-Control-Allow-Headers",
+    "Access-Control-Request-Method",
+    "Access-Control-Request-Headers",
+  ],
+  credentials: true,
+  optionsSuccessStatus: 200, // Some legacy browsers choke on 204
+};
+
 // Middlewares
+app.use(cors(corsOptions)); // Apply the enhanced CORS configuration
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.use(cookieParser());
-app.use(
-  cors({
-    origin: ["http://localhost:3000", "https://casino-app-alpha.vercel.app/"],
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true,
-  })
-);
-
 app.use(
   fileUpload({
     useTempFiles: true,
