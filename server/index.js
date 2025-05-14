@@ -124,6 +124,10 @@ app.use("/api/blogs", blogRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/upload", uploadRoutes);
 
+app.get("/", (req, res) => {
+  res.redirect("https://casino-app-rho-vert.vercel.app");
+});
+
 // Health check endpoint
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "OK" });
