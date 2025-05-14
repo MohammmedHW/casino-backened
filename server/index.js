@@ -50,13 +50,19 @@ app.use("/api/blogs", blogRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/upload", uploadRoutes);
 
+// Root route
 app.get("/", (req, res) => {
-  res.redirect("https://casino-app-rho-vert.vercel.app");
-});
-
-// Health check endpoint
-app.get("/health", (req, res) => {
-  res.status(200).json({ status: "OK" });
+  res.json({
+    status: "success",
+    message: "Casino Backend API",
+    version: "1.0.0",
+    endpoints: {
+      casinos: "/api/casinos",
+      blogs: "/api/blogs",
+      auth: "/api/auth",
+      upload: "/api/upload",
+    },
+  });
 });
 
 // Error handling middleware
