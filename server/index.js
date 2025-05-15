@@ -128,6 +128,7 @@ const corsOptions = {
   credentials: true,
   optionsSuccessStatus: 200,
 };
+app.options("*", cors(corsOptions));
 
 // Middlewares
 app.use(express.json({ limit: "50mb" }));
@@ -141,10 +142,20 @@ if (process.env.NODE_ENV === "production") {
 }
 
 // File upload middleware
+// app.use(
+//   fileUpload({
+//     useTempFiles: true,
+//     tempFileDir: "/tmp",
+//   })
+// );
+// Replace the fileUpload middleware configuration with:
 app.use(
   fileUpload({
-    useTempFiles: true,
-    tempFileDir: "/tmp",
+    useTempFiles: false, // Don't use temp files in production
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+    abortOnLimit: true,
+    responseOnLimit: "File size too large. Max 5MB allowed",
+    parseNested: true,
   })
 );
 
