@@ -1,51 +1,128 @@
+// // const cloudinary = require("cloudinary").v2;
+
+// // exports.uploadImage = async (req, res) => {
+// //   try {
+// //     if (!req.files || Object.keys(req.files).length === 0) {
+// //       return res.status(400).json({ message: "No file uploaded" });
+// //     }
+
+// //     const file = req.files.file;
+
+// //     // Validate file type (optional)
+// //     const allowedTypes = ["image/jpeg", "image/png", "image/jpg", "image/gif"];
+// //     if (!allowedTypes.includes(file.mimetype)) {
+// //       return res.status(400).json({
+// //         message: "Invalid file type. Only JPG, PNG and GIF images are allowed",
+// //       });
+// //     }
+
+// //     // Upload to cloudinary
+// //     const result = await cloudinary.uploader.upload(file.tempFilePath, {
+// //       folder: "casino-website",
+// //       resource_type: "auto",
+// //     });
+
+// //     res.json({
+// //       url: result.secure_url,
+// //       public_id: result.public_id,
+// //     });
+// //   } catch (error) {
+// //     console.error("Upload error:", error);
+// //     res
+// //       .status(500)
+// //       .json({ message: "File upload failed", error: error.message });
+// //   }
+// // };
+
 // const cloudinary = require("cloudinary").v2;
+// const fs = require("fs");
+// const path = require("path");
+
+// // Ensure temp directory exists
+// const tempDir = path.join(__dirname, "../../tmp");
+// if (!fs.existsSync(tempDir)) {
+//   fs.mkdirSync(tempDir, { recursive: true });
+// }
 
 // exports.uploadImage = async (req, res) => {
 //   try {
-//     if (!req.files || Object.keys(req.files).length === 0) {
-//       return res.status(400).json({ message: "No file uploaded" });
-//     }
-
-//     const file = req.files.file;
-
-//     // Validate file type (optional)
-//     const allowedTypes = ["image/jpeg", "image/png", "image/jpg", "image/gif"];
-//     if (!allowedTypes.includes(file.mimetype)) {
+//     if (!req.files || !req.files.image) {
 //       return res.status(400).json({
-//         message: "Invalid file type. Only JPG, PNG and GIF images are allowed",
+//         success: false,
+//         message: "No image file uploaded",
 //       });
 //     }
 
-//     // Upload to cloudinary
-//     const result = await cloudinary.uploader.upload(file.tempFilePath, {
-//       folder: "casino-website",
+//     const image = req.files.image;
+//     const tempFilePath = path.join(tempDir, `${Date.now()}-${image.name}`);
+
+//     // Save file temporarily
+//     await image.mv(tempFilePath);
+
+//     // Upload to Cloudinary
+//     const result = await cloudinary.uploader.upload(tempFilePath, {
+//       folder: process.env.CLOUDINARY_FOLDER || "casino-uploads",
 //       resource_type: "auto",
+//       quality: "auto:good",
 //     });
 
-//     res.json({
-//       url: result.secure_url,
-//       public_id: result.public_id,
+//     // Clean up temp file
+//     fs.unlinkSync(tempFilePath);
+
+//     res.status(200).json({
+//       success: true,
+//       message: "Image uploaded successfully",
+//       data: {
+//         url: result.secure_url,
+//         public_id: result.public_id,
+//         width: result.width,
+//         height: result.height,
+//         format: result.format,
+//       },
 //     });
 //   } catch (error) {
 //     console.error("Upload error:", error);
-//     res
-//       .status(500)
-//       .json({ message: "File upload failed", error: error.message });
+
+//     // Clean up temp file if it exists
+//     if (tempFilePath && fs.existsSync(tempFilePath)) {
+//       fs.unlinkSync(tempFilePath);
+//     }
+
+//     res.status(500).json({
+//       success: false,
+//       message: "Image upload failed",
+//       error: process.env.NODE_ENV === "development" ? error.message : undefined,
+//     });
 //   }
 // };
 
 const cloudinary = require("cloudinary").v2;
 const fs = require("fs");
 const path = require("path");
+const { promisify } = require("util");
 
-// Ensure temp directory exists
+// Promisify fs functions
+const unlinkAsync = promisify(fs.unlink);
+const existsAsync = promisify(fs.exists);
+const mkdirAsync = promisify(fs.mkdir);
+
+// Ensure temp directory exists - do this synchronously during module load
 const tempDir = path.join(__dirname, "../../tmp");
 if (!fs.existsSync(tempDir)) {
-  fs.mkdirSync(tempDir, { recursive: true });
+  try {
+    fs.mkdirSync(tempDir, { recursive: true });
+    console.log(`Created temp directory at ${tempDir}`);
+  } catch (err) {
+    console.error(`Failed to create temp directory: ${err.message}`);
+    // Continue execution, we'll handle this in the upload function
+  }
 }
 
 exports.uploadImage = async (req, res) => {
+  let tempFilePath = null;
+
   try {
+    // Validate request
     if (!req.files || !req.files.image) {
       return res.status(400).json({
         success: false,
@@ -54,22 +131,53 @@ exports.uploadImage = async (req, res) => {
     }
 
     const image = req.files.image;
-    const tempFilePath = path.join(tempDir, `${Date.now()}-${image.name}`);
+
+    // Log information for debugging
+    console.log("Upload request received:", {
+      fileName: image.name,
+      fileSize: image.size,
+      mimeType: image.mimetype,
+    });
+
+    // Create temp directory if it doesn't exist
+    if (!fs.existsSync(tempDir)) {
+      await mkdirAsync(tempDir, { recursive: true });
+      console.log(`Created temp directory at ${tempDir} (during request)`);
+    }
+
+    // Generate unique temp file path
+    tempFilePath = path.join(tempDir, `${Date.now()}-${image.name}`);
+    console.log(`Using temp file path: ${tempFilePath}`);
 
     // Save file temporarily
     await image.mv(tempFilePath);
+    console.log("File saved to temp location");
+
+    // Verify the file exists
+    const fileExists = await existsAsync(tempFilePath);
+    if (!fileExists) {
+      throw new Error(`Failed to save file to temp path: ${tempFilePath}`);
+    }
 
     // Upload to Cloudinary
+    console.log("Attempting Cloudinary upload...");
+    const cloudinaryFolder = process.env.CLOUDINARY_FOLDER || "casino-uploads";
+    console.log(`Using Cloudinary folder: ${cloudinaryFolder}`);
+
     const result = await cloudinary.uploader.upload(tempFilePath, {
-      folder: process.env.CLOUDINARY_FOLDER || "casino-uploads",
+      folder: cloudinaryFolder,
       resource_type: "auto",
       quality: "auto:good",
     });
 
-    // Clean up temp file
-    fs.unlinkSync(tempFilePath);
+    console.log("Cloudinary upload successful:", result.public_id);
 
-    res.status(200).json({
+    // Clean up temp file
+    await unlinkAsync(tempFilePath);
+    console.log("Temp file cleaned up");
+
+    // Return success response
+    return res.status(200).json({
       success: true,
       message: "Image uploaded successfully",
       data: {
@@ -83,15 +191,38 @@ exports.uploadImage = async (req, res) => {
   } catch (error) {
     console.error("Upload error:", error);
 
+    // Log detailed information
+    console.error({
+      message: error.message,
+      stack: error.stack,
+      cloudinaryError: error.http_code
+        ? {
+            code: error.http_code,
+            message: error.message,
+          }
+        : "Not a Cloudinary error",
+    });
+
     // Clean up temp file if it exists
-    if (tempFilePath && fs.existsSync(tempFilePath)) {
-      fs.unlinkSync(tempFilePath);
+    if (tempFilePath) {
+      try {
+        const fileExists = await existsAsync(tempFilePath);
+        if (fileExists) {
+          await unlinkAsync(tempFilePath);
+          console.log("Temp file cleaned up after error");
+        }
+      } catch (cleanupError) {
+        console.error("Error cleaning up temp file:", cleanupError);
+      }
     }
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Image upload failed",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+      error:
+        process.env.NODE_ENV === "development"
+          ? error.message
+          : "Server error, please try again later",
     });
   }
 };
