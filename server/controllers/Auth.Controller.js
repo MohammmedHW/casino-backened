@@ -90,19 +90,82 @@ exports.register = async (req, res) => {
 
 // ... (keep existing code)
 
+//updates
+// exports.login = async (req, res) => {
+//   try {
+//     const { email, password } = req.body;
+//     let user = await User.findOne({ email });
+//     if (!user) {
+//       return res.status(400).json({ message: "Invalid credentials" });
+//     }
+
+//     const isMatch = await bcrypt.compare(password, user.password);
+//     if (!isMatch) {
+//       return res.status(400).json({ message: "Invalid credentials" });
+//     }
+
+//     const payload = {
+//       user: {
+//         id: user.id,
+//         isAdmin: user.isAdmin,
+//       },
+//     };
+
+//     jwt.sign(
+//       payload,
+//       process.env.JWT_SECRET || "secret",
+//       { expiresIn: "7d" },
+//       (err, token) => {
+//         if (err) throw err;
+//         res.json({
+//           token,
+//           user: {
+//             id: user.id,
+//             email: user.email,
+//             isAdmin: user.isAdmin,
+//             name: user.name,
+//           },
+//           redirectTo: "/dashboard", // Add redirect information
+//         });
+//       }
+//     );
+//   } catch (err) {
+//     console.error(err.message);
+//     res.status(500).send("Server error");
+//   }
+// };
+
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    let user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ message: "Invalid credentials" });
+
+    // Validate input
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and password are required",
+      });
     }
 
+    // Check if user exists
+    const user = await User.findOne({ email }).select("+password");
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid credentials",
+      });
+    }
+
+    // Compare password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(400).json({ message: "Invalid credentials" });
+      return res.status(401).json({
+        success: false,
+        message: "Invalid credentials",
+      });
     }
 
+    // Generate JWT token
     const payload = {
       user: {
         id: user.id,
@@ -110,27 +173,26 @@ exports.login = async (req, res) => {
       },
     };
 
-    jwt.sign(
-      payload,
-      process.env.JWT_SECRET || "secret",
-      { expiresIn: "7d" },
-      (err, token) => {
-        if (err) throw err;
-        res.json({
-          token,
-          user: {
-            id: user.id,
-            email: user.email,
-            isAdmin: user.isAdmin,
-            name: user.name,
-          },
-          redirectTo: "/dashboard", // Add redirect information
-        });
-      }
-    );
+    const token = jwt.sign(payload, process.env.JWT_SECRET || "secret", {
+      expiresIn: "7d",
+    });
+
+    // Don't send password back
+    const userWithoutPassword = user.toObject();
+    delete userWithoutPassword.password;
+
+    res.json({
+      success: true,
+      token,
+      user: userWithoutPassword,
+    });
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send("Server error");
+    console.error("Login error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server error during login",
+      error: process.env.NODE_ENV === "development" ? err.message : undefined,
+    });
   }
 };
 
