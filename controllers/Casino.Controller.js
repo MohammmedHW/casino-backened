@@ -26,7 +26,16 @@ exports.getCasinoById = async (req, res) => {
 // Create casino
 exports.createCasino = async (req, res) => {
   try {
-    const casino = new Casino(req.body);
+    // Get the current maximum order value
+    const lastOrderCasino = await Casino.findOne().sort('-order').select('order');
+    const newOrder = lastOrderCasino ? lastOrderCasino.order + 1 : 1;
+
+    // Create new casino with calculated order
+    const casino = new Casino({
+      ...req.body,
+      order: newOrder
+    });
+
     const savedCasino = await casino.save();
     res.status(201).json(savedCasino);
   } catch (err) {
