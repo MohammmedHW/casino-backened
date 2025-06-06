@@ -27,13 +27,15 @@ exports.getCasinoById = async (req, res) => {
 exports.createCasino = async (req, res) => {
   try {
     // Get the current maximum order value
-    const lastOrderCasino = await Casino.findOne().sort('-order').select('order');
+    const lastOrderCasino = await Casino.findOne()
+      .sort("-order")
+      .select("order");
     const newOrder = lastOrderCasino ? lastOrderCasino.order + 1 : 1;
 
     // Create new casino with calculated order
     const casino = new Casino({
       ...req.body,
-      order: newOrder
+      order: newOrder,
     });
 
     const savedCasino = await casino.save();
@@ -195,9 +197,34 @@ exports.updateCasinoOrder = async (req, res) => {
 //   }
 // };
 
+// exports.getCasinoBySlug = async (req, res) => {
+//   try {
+//     const casino = await Casino.findOne({ slug: req.params.slug });
+//     if (!casino) {
+//       return res.status(404).json({ message: "Casino not found" });
+//     }
+//     res.json(casino);
+//   } catch (err) {
+//     res.status(500).json({ message: err.message });
+//   }
+// };
+
 exports.getCasinoBySlug = async (req, res) => {
   try {
-    const casino = await Casino.findOne({ slug: req.params.slug });
+    // First try exact slug match
+    let casino = await Casino.findOne({ slug: req.params.slug });
+
+    // If not found, try generating slug from name
+    if (!casino) {
+      const nameSlug = req.params.slug
+        .replace(/-/g, " ")
+        .replace(/\b\w/g, (l) => l.toUpperCase());
+
+      casino = await Casino.findOne({
+        name: new RegExp(`^${nameSlug}$`, "i"),
+      });
+    }
+
     if (!casino) {
       return res.status(404).json({ message: "Casino not found" });
     }

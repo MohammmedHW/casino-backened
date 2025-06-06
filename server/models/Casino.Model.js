@@ -168,14 +168,32 @@ CasinoSchema.index({ rating: -1 });
 CasinoSchema.index({ order: 1 });
 
 // Add this to your Casino model
+// CasinoSchema.pre("save", function (next) {
+//   if (!this.slug) {
+//     this.slug = this.name
+//       .toLowerCase()
+//       .replace(/[^\w ]+/g, "")
+//       .replace(/ +/g, "-");
+//   }
+//   next();
+// });
+
 CasinoSchema.pre("save", function (next) {
-  if (!this.slug) {
-    this.slug = this.name
-      .toLowerCase()
-      .replace(/[^\w ]+/g, "")
-      .replace(/ +/g, "-");
-  }
+  // Always regenerate slug from name to prevent mismatches
+  this.slug = this.name
+    .toLowerCase()
+    .replace(/[^\w ]+/g, "")
+    .replace(/ +/g, "-");
   next();
 });
+
+// Add validation
+CasinoSchema.path("slug").validate(function (slug) {
+  const expected = this.name
+    .toLowerCase()
+    .replace(/[^\w ]+/g, "")
+    .replace(/ +/g, "-");
+  return slug === expected;
+}, "Slug must match the auto-generated pattern");
 
 module.exports = mongoose.model("Casino", CasinoSchema);
