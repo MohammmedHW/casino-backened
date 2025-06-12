@@ -28,6 +28,7 @@ const corsOptions = {
     "http://localhost:3000",
     "https://casino-app-alpha.vercel.app",
     "https://casino-backened.onrender.com",
+    "https://mrgamblers.com",
   ],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: [
